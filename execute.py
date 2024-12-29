@@ -1,5 +1,3 @@
-import os
-import sys
 import sounddevice as sd
 import numpy as np
 import torch
@@ -55,6 +53,7 @@ def recognize_audio(audio_data, sample_rate, model_path, result_container):
 
 # 主执行函数
 def main():
+    torchaudio.set_audio_backend("soundfile")
     # 录制音频
     audio_data = record_audio()
 
