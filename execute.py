@@ -1,3 +1,4 @@
+import json
 import sounddevice as sd
 import numpy as np
 import torch
@@ -47,8 +48,11 @@ def recognize_audio(audio_data, sample_rate, model_path, result_container):
     recognizer.AcceptWaveform(audio_array.tobytes())
     result = recognizer.FinalResult()
 
+    result_dict = json.loads(result)
+    text = result_dict.get("text", "")
+
     # 将结果存入容器
-    result_container.append(result)
+    result_container.append(text)
     print("Recognizing finished.")
 
 # 主执行函数
