@@ -8,6 +8,7 @@ from vosk import Model, KaldiRecognizer
 import wave
 import TDANet.look2hear.models
 import threading
+import time
 
 # 设备设置
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -61,6 +62,9 @@ def main():
     # 录制音频
     audio_data = record_audio()
 
+    # 开始计时
+    start_time = time.time()
+
     # 分离音频
     est_sources = separate_audio(audio_data)
 
@@ -100,6 +104,7 @@ def main():
     # 输出识别结果
     print("Voice 1:", result_1[0])
     print("Voice 2:", result_2[0])
+    print("Time elapsed:", time.time() - start_time)
 
 if __name__ == "__main__":
     main()
