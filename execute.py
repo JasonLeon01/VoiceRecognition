@@ -14,7 +14,7 @@ separation_model = TDANet.look2hear.models.BaseModel.from_pretrain(
     "./TDANet/local_models/TDANetBest-4ms-LRS2/pytorch_model.bin"
 ).to(device)
 separation_model.eval()
-recognition_model_path = "./vosk-model-small-cn-0.22"
+recognition_model_path = "./vosk-model-cn-0.22"
 recognition_model = Model(recognition_model_path)
 
 # 录音参数
@@ -83,4 +83,7 @@ def main():
     print("Time elapsed:", time.time() - start_time)
 
 if __name__ == "__main__":
-    main()
+    while True:
+        main()
+        if input("Continue? (y/n)") != "y":
+            break
