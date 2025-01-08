@@ -5,6 +5,8 @@ import torch
 import torchaudio
 from vosk import Model, KaldiRecognizer
 import TDANet.look2hear.models
+from Resemblyzer.resemblyzer import VoiceEncoder, preprocess_wav
+from pathlib import Path
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -16,19 +18,19 @@ separation_model = TDANet.look2hear.models.BaseModel.from_pretrain(
 separation_model.eval()
 recognition_model_path = "./vosk-model-cn-0.22"
 recognition_model = Model(recognition_model_path)
+encoder = VoiceEncoder()
 
 # 录音参数
 SAMPLERATE = 16000  # 采样率
 CHANNELS = 1  # 单声道
-DURATION = 5  # 录制时长，单位为秒
 
 # 录制音频的函数
-def record_audio():
+def record_audio(DURATION):
     print("Start recording...")
     audio_data = sd.rec(int(SAMPLERATE * DURATION), samplerate=SAMPLERATE, channels=CHANNELS, dtype='float32')
     sd.wait()  # 等待录音完成
     print("Recording finished.")
-    return audio_data
+    return audio_data.flatten()
 
 # 分离音频的函数
 def separate_audio(mix_audio):
@@ -58,32 +60,71 @@ def parallel_recognize(audio_data_1, audio_data_2, sample_rate, result_1, result
         executor.submit(recognize_audio, audio_data_2, sample_rate, result_2)
 
 # 主执行函数
-def main():
-    torchaudio.set_audio_backend("soundfile")
+def main(target_embedding):
     # 录制音频
-    audio_data = record_audio()
+    audio_data = record_audio(5)
 
     # 开始计时
     start_time = time.time()
 
-    # 分离音频
-    est_sources = separate_audio(audio_data)
+    mixed_wav = preprocess_wav(audio_data, SAMPLERATE)
 
-    # 转为 NumPy 数组
-    audio_data_1 = (est_sources[:, 0, :].detach().cpu() * 32767).numpy().astype(np.int16)
-    audio_data_2 = (est_sources[:, 1, :].detach().cpu() * 32767).numpy().astype(np.int16)
+    # 定义分段参数
+    segment_duration = 0.5  # 每段时长（秒）
+    segment_samples = int(SAMPLERATE * segment_duration)  # 每段的样本数
 
-    # 并行识别
-    result_1, result_2 = [], []
-    parallel_recognize(audio_data_1, audio_data_2, SAMPLERATE, result_1, result_2)
+    # 将混合音频分割为短片段
+    segments = [mixed_wav[i:i + segment_samples] for i in range(0, len(mixed_wav), segment_samples)]
 
-    # 输出结果
-    print("Voice 1:", result_1[0])
-    print("Voice 2:", result_2[0])
+    # 提取目标说话人的声音
+    extracted_audio = np.zeros_like(mixed_wav)  # 用于存储提取的目标说话人声音
+    for i, segment in enumerate(segments):
+        if len(segment) < segment_samples:
+            continue  # 忽略最后不足一个分段的部分
+
+        # 提取当前分段的声纹特征
+        segment_embedding = encoder.embed_utterance(segment)
+        similarity = np.dot(segment_embedding, target_embedding)  # 计算相似度
+
+        # 如果相似度高于阈值，认为是目标说话人的声音
+        if similarity > 0.8:  # 阈值可以根据实际情况调整
+            start = i * segment_samples
+            end = start + segment_samples
+            extracted_audio[start:end] += segment  # 提取目标说话人的声音
+    
+    # 将提取的音频转换为文本
+    if np.any(extracted_audio):  # 检查是否有提取的音频
+        result_container = []
+        recognize_audio(extracted_audio, SAMPLERATE, result_container)
+        print("Voice：", result_container[0])
+    else:
+        print("Target speaker not found.")
+
+    # # 分离音频
+    # est_sources = separate_audio(audio_data)
+
+    # # 转为 NumPy 数组
+    # audio_data_1 = (est_sources[:, 0, :].detach().cpu() * 32767).numpy().astype(np.int16)
+    # audio_data_2 = (est_sources[:, 1, :].detach().cpu() * 32767).numpy().astype(np.int16)
+
+    # # 并行识别
+    # result_1, result_2 = [], []
+    # parallel_recognize(audio_data_1, audio_data_2, SAMPLERATE, result_1, result_2)
+
+    # # 输出结果
+    # print("Voice 1:", result_1[0])
+    # print("Voice 2:", result_2[0])
     print("Time elapsed:", time.time() - start_time)
 
 if __name__ == "__main__":
+    torchaudio.set_audio_backend("soundfile")
+    # 录制音频获取声纹特征
+    target_audio_data = record_audio(2)
+    target_wav = preprocess_wav(target_audio_data, SAMPLERATE)
+    target_embedding = encoder.embed_utterance(target_wav)
+    print("Voiceprint extracted.")
+
     while True:
-        main()
+        main(target_embedding)
         if input("Continue? (y/n)") != "y":
             break
