@@ -5,9 +5,9 @@ import sounddevice as sd
 import numpy as np
 import torch
 import torchaudio
-from vosk import Model, KaldiRecognizer
-# import TDANet.look2hear.models
 sys.path.append(os.path.join(os.getcwd(), 'Resemblyzer'))
+import noisereduce as nr
+from vosk import Model, KaldiRecognizer
 from Resemblyzer.resemblyzer import VoiceEncoder, preprocess_wav
 # from pathlib import Path
 import time
@@ -33,6 +33,14 @@ def record_audio(DURATION):
     sd.wait()  # 等待录音完成
     print("Recording finished.")
     return audio_data.flatten()
+
+# 降噪函数
+def denoise_audio(audio_data, sample_rate, noise_start=0, noise_end=1):
+    print("Denoising audio...")
+    noise = audio_data[int(noise_start * sample_rate):int(noise_end * sample_rate)]
+    reduced_noise = nr.reduce_noise(y=audio_data, sr=sample_rate, y_noise=noise)
+    print("Audio denoised.")
+    return reduced_noise
 
 # 声纹特征提取函数
 def extract_voice_embedding(audio_data, sample_rate=SAMPLERATE):
@@ -79,7 +87,7 @@ def recognize_audio(audio_data):
 # 主执行函数
 def main(target_embedding):
     # 录制音频
-    audio_data = record_audio(5)
+    audio_data = denoise_audio(record_audio(5), SAMPLERATE, noise_start=0, noise_end=1)
 
     # 开始计时
     start_time = time.time()
@@ -100,7 +108,7 @@ def main(target_embedding):
 if __name__ == "__main__":
     torchaudio.set_audio_backend("soundfile")
     # 录制音频获取声纹特征
-    target_audio = record_audio(3)
+    target_audio = denoise_audio(record_audio(3), SAMPLERATE, noise_start=0, noise_end=1)
     target_embedding = extract_voice_embedding(target_audio)
     print("Voiceprint extracted.")
     time.sleep(2)
