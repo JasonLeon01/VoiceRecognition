@@ -70,7 +70,7 @@ def extract_target_speaker_segments(audio_data, target_embedding, segment_durati
 
         # 如果相似度高于阈值，认为是目标说话人的声音
         print(f"Segment {i + 1} similarity: {similarity}")
-        if similarity > 0.65:  # 阈值可以根据实际情况调整
+        if similarity > 0.55:  # 阈值可以根据实际情况调整
             start = i * segment_length
             end = start + segment_length
             target_segments[start:end] = segment  # 提取目标说话人的声音
