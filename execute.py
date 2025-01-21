@@ -60,10 +60,8 @@ def extract_target_speaker_segments(audio_data, target_embedding, segment_durati
     audio_segments = split_audio(audio_data, segment_duration)
     segment_length = int(SAMPLERATE * segment_duration)
     target_segments = np.zeros_like(audio_data)
+    
     for i, segment in enumerate(audio_segments):
-        if len(segment) < segment_length:
-            continue  # 忽略最后不足一个分段的部分
-
         # 提取当前分段的声纹特征
         segment_embedding = encoder.embed_utterance(segment)
         similarity = np.dot(segment_embedding, target_embedding) / (np.linalg.norm(segment_embedding) * np.linalg.norm(target_embedding))  # 计算相似度
@@ -72,8 +70,9 @@ def extract_target_speaker_segments(audio_data, target_embedding, segment_durati
         print(f"Segment {i + 1} similarity: {similarity}")
         if similarity > 0.55:  # 阈值可以根据实际情况调整
             start = i * segment_length
-            end = start + segment_length
+            end = start + len(segment)  # 使用实际长度，以处理不足一个分段的部分
             target_segments[start:end] = segment  # 提取目标说话人的声音
+
     return target_segments
 
 # 语音识别函数
