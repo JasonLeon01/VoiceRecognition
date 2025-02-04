@@ -6,3 +6,4 @@
 /vosk/__pycache__
 /vosk-model-cn-0.22
 /Resemblyzer/audio_data
+*.pyc
