@@ -35,17 +35,17 @@ def main(target_embedding):
         print("No target speaker segments found.")
     print("Time elapsed:", time.time() - start_time)
 
-if __name__ == "__main__":
-    torchaudio.set_audio_backend("soundfile")
-    # 录制音频获取声纹特征
-    print("Model loaded.")
-    time.sleep(2)
-    target_audio = denoise.denoise_audio(record.record_audio(3), SAMPLERATE, noise_start=0, noise_end=1)
-    target_embedding = voiceprint.extract_voice_embedding(target_audio)
-    print("Voiceprint extracted.")
-    time.sleep(2)
+# if __name__ == "__main__":
+#     torchaudio.set_audio_backend("soundfile")
+#     # 录制音频获取声纹特征
+#     print("Model loaded.")
+#     time.sleep(2)
+#     target_audio = denoise.denoise_audio(record.record_audio(3), SAMPLERATE, noise_start=0, noise_end=1)
+#     target_embedding = voiceprint.extract_voice_embedding(target_audio)
+#     print("Voiceprint extracted.")
+#     time.sleep(2)
 
-    while True:
-        main(target_embedding)
-        if input("Continue? (y/n)") != "y":
-            break
+#     while True:
+#         main(target_embedding)
+#         if input("Continue? (y/n)") != "y":
+#             break
