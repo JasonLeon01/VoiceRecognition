@@ -1,4 +1,6 @@
-import threading
+import sys
+import os
+sys.path.append(os.path.join(os.getcwd(), 'Resemblyzer'))
 import tkinter as tk
 from tkinter import scrolledtext
 import VoiceWatch
@@ -11,7 +13,8 @@ class App:
         self.current_page = 0
         self.panels = []
 
-        self.listener = VoiceWatch.Listener("你好航班助手", lambda: root.after(0, self.update_GUI))
+        self.listener = VoiceWatch.Listener("航班助手", lambda: root.after(0, self.update_GUI))
+        self.listener.start_listening()
 
         self.panels.append(Panel1(self.root, size))
 
@@ -48,8 +51,6 @@ class App:
         if text:
             self.text_area.insert(tk.END, text + '\n')
             self.text_area.see(tk.END)
-
-
 
 def main():
     root = tk.Tk()
