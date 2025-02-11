@@ -49,15 +49,16 @@ class Listener:
         self.buffer = self.buffer[self.frame_length:]  # 移除已处理的帧数据
 
         # 检测这帧数据是否含有语音
-        is_speech = self.vad.is_speech(np.array(frame).tobytes(), self.SAMPLERATE)
+        frame_int16 = np.int16(np.array(frame) * 32767).flatten()
+        is_speech = self.vad.is_speech(frame_int16.tobytes(), self.SAMPLERATE)
         return is_speech, frame
 
     def callback(self, indata, frames, time, status):
         if status:
             print(status)
         # 将音频数据转换为16-bit PCM数据并累积
-        indata_int16 = np.int16(indata * 32767)  # float32 转 int16
-        self.buffer.extend(indata_int16.flatten())  # 将数据追加到 buffer
+        # indata_int16 = np.int16(indata * 32767)  # float32 转 int16
+        self.buffer.extend(indata.flatten())  # 将数据追加到 buffer
 
     def listen(self):
         with sd.InputStream(samplerate=self.SAMPLERATE, channels=self.CHANNELS, callback=self.callback):
@@ -99,7 +100,8 @@ class Listener:
     def recognize_audio(self, audio_data):
         print(audio_data)
         self.recognizer.Reset()
-        audio_int16 = audio_data.astype(np.int16)
+        # audio_int16 = audio_data.astype(np.int16)
+        audio_int16 = np.int16(audio_data * 32767).flatten()
         self.recognizer.AcceptWaveform(audio_int16.tobytes())
         result = self.recognizer.FinalResult()
         result_dict = json.loads(result)
