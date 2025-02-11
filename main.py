@@ -13,7 +13,7 @@ class App:
         self.current_page = 0
         self.panels = []
 
-        self.listener = VoiceWatch.Listener("航班助手", lambda: root.after(0, self.update_GUI))
+        self.listener = VoiceWatch.Listener("航班助手", lambda text: root.after(0, self.update_GUI, text))
         self.listener.start_listening()
 
         self.panels.append(Panel1(self.root, size))
@@ -48,7 +48,7 @@ class App:
         self.listener.stop_listening()
 
     def update_GUI(self, text=None):
-        if text:
+        if text is not None:
             self.text_area.insert(tk.END, text + '\n')
             self.text_area.see(tk.END)
 

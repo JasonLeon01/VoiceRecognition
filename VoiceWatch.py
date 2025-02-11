@@ -80,17 +80,43 @@ class Listener:
                         else:
                             if self.speech_detected:
                                 saved_audio_buffer = None
-                                if time.time() - self.last_detected_time > 1:
-                                    self.speech_detected = False
-                                    self.last_detected_time = None
-                                    saved_audio_buffer = audio_buffer.flatten()
-                                    audio_buffer = np.array([], dtype=np.float32)
-                                    clean_audio = self.denoise_audio(saved_audio_buffer)
-                                    text = self.recognize_audio(clean_audio)
+                                if self.target_embedding is None:
+                                    if time.time() - self.last_detected_time > 1:
+                                        self.speech_detected = False
+                                        self.last_detected_time = None
+                                        saved_audio_buffer = audio_buffer.flatten()
+                                        audio_buffer = np.array([], dtype=np.float32)
+                                        clean_audio = self.denoise_audio(saved_audio_buffer)
+                                        text = self.recognize_audio(clean_audio)
 
-                                    print(f"Recognized text: {text}")
-                                    if self.wake_word in text:
-                                        print("Wake word detected.")
+                                        print(f"Recognized text: {text}")
+                                        if self.wake_word in text:
+                                            print("Wake word detected.")
+                                            self.target_embedding = self.voiceprint.extract_voice_embedding(clean_audio)
+                                            print("Target speaker set. Please start speaking.")
+                                else:
+                                    if time.time() - self.last_detected_time > 6:
+                                        self.speech_detected = False
+                                        self.last_detected_time = None
+                                        audio_buffer = np.array([], dtype=np.float32)
+                                        self.target_embedding = None
+                                        print("Target speaker cleared.")
+                                        continue
+                                    if time.time() - self.last_detected_time > 1:
+                                        self.speech_detected = False
+                                        saved_audio_buffer = audio_buffer.flatten()
+                                        audio_buffer = np.array([], dtype=np.float32)
+                                        clean_audio = self.denoise_audio(saved_audio_buffer)
+
+                                        target_audio = self.voiceprint.extract_target_speaker_segments(clean_audio, self.target_embedding, 0.5)
+
+                                        if np.any(target_audio):
+                                            self.last_detected_time = None
+                                            text = self.recognize_audio(target_audio)
+                                            print(f"Recognized target text: {text}")
+                                            self.stop_listening()
+                                            self.GUI_update_callback(text)
+
                             else:
                                 audio_buffer = np.array([], dtype=np.float32)
 
