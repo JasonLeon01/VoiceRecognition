@@ -1,21 +1,43 @@
 import tkinter as tk
 from tkinter import PhotoImage
 
-class Panel:
+class Panel(tk.Frame):
     def __init__(self, parent, size, image_path=None):
         self.parent = parent
-        self.frame = tk.Frame(parent)
         width, height = size
-        if image_path:
-            self.image = PhotoImage(file=image_path)
-            self.canvas = tk.Canvas(self.frame, width=width, height=height)
-            self.canvas.pack(fill=tk.BOTH, expand=True)
-            self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image)
-        else:
-            self.canvas = None
+        super().__init__(parent.root, width=width, height=height)
+        self.voie_text = None
+        self.next_panel = None
+
+        self.bg_image = PhotoImage(file=image_path)
+        self.bg_label = tk.Label(master=self, image=self.bg_image)
+        self.bg_label.place(x=0, y=0)
+
+        self.fg_label = tk.Label(master=self, text="", font=("Arial", 24))
+        self.fg_label.place(x=50, y=50)
+        self._update_id = None
+
+    def update(self):
+        # 基类内容，后面通过super调用
+        self._update_id = self.after(16, self.update)
+
+    def get_text(self, text):
+        self.voie_text = text
+        self.fg_label.config(text=text)
         
     def show(self):
-        self.frame.pack(fill=tk.BOTH, expand=True)
+        self.place(x=0, y=0)
+        if self._update_id is None:
+            self.update()
         
     def hide(self):
-        self.frame.pack_forget()
+        self.place_forget()
+        if self._update_id:
+            self.after_cancel(self._update_id)
+            self._update_id = None
+
+    def next_node(self):
+        self.hide()
+        self.parent.current_panel = self.next_panel
+        self.parent.current_panel.show()
+        self.parent.start_listening()
