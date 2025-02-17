@@ -7,3 +7,5 @@
 /vosk-model-cn-0.22
 /Resemblyzer/audio_data
 *.pyc
+/paraphrase-MiniLM-L6-v2
+/paraphrase-multilingual-MiniLM-L12-v2

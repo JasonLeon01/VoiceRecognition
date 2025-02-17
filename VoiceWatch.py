@@ -9,6 +9,8 @@ from vosk import Model, KaldiRecognizer
 import webrtcvad
 from Resemblyzer.resemblyzer import VoiceEncoder, preprocess_wav
 
+seat_words = ["一排", "二排", "三排", "四排", "五排", "A座", "B座", "C座", "D座", "E座", "F座"]
+
 class Listener:
     def __init__(self, wake_word, GUI_update_callback):
         self.wake_word = wake_word
@@ -20,8 +22,9 @@ class Listener:
         self.CHANNELS = 1  # 单声道
 
         recognition_model_path = "./vosk-model-cn-0.22"
+        word_list_json = json.dumps(seat_words, ensure_ascii=False)
         self.recognition_model = Model(recognition_model_path)
-        self.recognizer = KaldiRecognizer(self.recognition_model, self.SAMPLERATE)
+        self.recognizer = KaldiRecognizer(self.recognition_model, self.SAMPLERATE, word_list_json)
 
         self.target_embedding = None
         self.last_detected_time = None
