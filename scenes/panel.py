@@ -31,7 +31,10 @@ class Panel(tk.Frame):
 
     def update(self):
         # 基类内容，后面通过super调用
-        self._update_id = self.after(16, self.update)
+        if self._update_id == -1:
+            return
+        else:
+            self._update_id = self.after(16, self.update)
         
     def show(self):
         self.place(x=0, y=0)
@@ -42,7 +45,7 @@ class Panel(tk.Frame):
         self.place_forget()
         if self._update_id:
             self.after_cancel(self._update_id)
-            self._update_id = None
+            self._update_id = -1
 
     def next_node(self):
         self.hide()

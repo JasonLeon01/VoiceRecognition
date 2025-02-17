@@ -11,8 +11,17 @@ class Panel1(Panel):
             "select_seat": "选择x的第y排第z个座位",
             "book_meal": "预订x餐食"
         }
+        self.start_counting = False
 
     def update(self):
+        if self.count >= 100:
+            self.count = 0
+            if self.next_panel:
+                self.next_node()
+
+        if self.start_counting:
+            self.count += 1
+        
         if self.voie_text is not None:
             print("Extracting information from sentence...")
 
@@ -38,7 +47,6 @@ class Panel1(Panel):
             self.voie_text = None
             self.parent.start_listening()
 
-        self.count += 1
         super().update()
 
     def extract_seat_info(self, text):
@@ -63,8 +71,8 @@ class Panel1(Panel):
     
     def select_seat(self, cabin, row, seat):
         print(f"Selecting seat: {cabin}, row {row}, seat {seat}")
-        self.next_node()
+        self.start_counting = True
 
     def book_meal(self, meal_type):
         print(f"Booking meal: {meal_type}")
-        self.next_node()
+        self.start_counting = True
