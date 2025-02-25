@@ -1,8 +1,6 @@
 # VoiceRecognition
 ## Installation
-First, install Python 3.8.0 or higher version. Clone this repository and install dependencies and models.
-
-[Here](https://alphacephei.com/vosk/models) is the download address of vosk model.
+First, install Python 3.10.0 or higher version. Clone this repository and install dependencies and models.
 
 ```bash
 pip install -r requirements.txt
@@ -24,13 +22,7 @@ This repository is used to extract voiceprint features and compare the similarit
 
 https://github.com/resemble-ai/Resemblyzer
 
-### vosk
-This repository is used to recognise voices. Its official website provides a large number of models. 
+### OpenAI-Whisper
+This repository is used for automatic speech recognition (ASR). It can transcribe and translate audio files into text using state-of-the-art machine learning models.
 
-https://alphacephei.com/vosk/models
-
-Here is the python api address: https://github.com/alphacep/vosk-api/tree/master/python
-
-However, you can also train your own model by this. 
-
-https://github.com/alphacep/vosk-api/tree/master/training
+https://github.com/openai/whisper
