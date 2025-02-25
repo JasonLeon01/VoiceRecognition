@@ -1,15 +1,11 @@
-import queue
-import json
 import threading
 import time
 import numpy as np
 import sounddevice as sd
 import noisereduce as nr
-from vosk import Model, KaldiRecognizer
+import whisper
 import webrtcvad
 from Resemblyzer.resemblyzer import VoiceEncoder, preprocess_wav
-
-seat_words = ["一排", "二排", "三排", "四排", "五排", "A座", "B座", "C座", "D座", "E座", "F座"]
 
 class Listener:
     def __init__(self, wake_word, GUI_update_callback):
@@ -21,15 +17,13 @@ class Listener:
         self.SAMPLERATE = 16000  # 采样率
         self.CHANNELS = 1  # 单声道
 
-        recognition_model_path = "./vosk-model-cn-0.22"
-        word_list_json = json.dumps(seat_words, ensure_ascii=False)
-        self.recognition_model = Model(recognition_model_path)
-        self.recognizer = KaldiRecognizer(self.recognition_model, self.SAMPLERATE, word_list_json)
+        self.whisper_model = whisper.load_model("turbo")
 
         self.target_embedding = None
         self.last_detected_time = None
         self.speech_detected = False
         self.voiceprint = Voiceprint()
+        self.detected_audio = None
 
         self.frame_duration_ms = 30  # 每帧持续30毫秒
         self.frame_length = int(self.SAMPLERATE * self.frame_duration_ms / 1000)  # 每帧的采样点数
@@ -75,66 +69,38 @@ class Listener:
                             audio_buffer = np.concatenate((audio_buffer, frame))
                             print("Speech detected.")
                             self.speech_detected = True
-                            if self.last_detected_time is None:
-                                self.last_detected_time = time.time()
-                            if time.time() - self.last_detected_time > 10:
+                            self.last_detected_time = time.time()
+                        else:
+                            now_time = time.time()
+                            if self.speech_detected and now_time - self.last_detected_time > 2:
                                 self.speech_detected = False
                                 self.last_detected_time = None
-                        else:
-                            if self.speech_detected:
-                                saved_audio_buffer = None
-                                if self.target_embedding is None:
-                                    if time.time() - self.last_detected_time > 1:
-                                        self.speech_detected = False
-                                        self.last_detected_time = None
-                                        saved_audio_buffer = audio_buffer.flatten()
-                                        audio_buffer = np.array([], dtype=np.float32)
-                                        clean_audio = self.denoise_audio(saved_audio_buffer)
-                                        text = self.recognize_audio(clean_audio)
-
-                                        print(f"Recognized text: {text}")
-                                        if self.wake_word in text:
-                                            print("Wake word detected.")
-                                            self.target_embedding = self.voiceprint.extract_voice_embedding(clean_audio)
-                                            print("Target speaker set. Please start speaking.")
-                                else:
-                                    if time.time() - self.last_detected_time > 6:
-                                        self.speech_detected = False
-                                        self.last_detected_time = None
-                                        audio_buffer = np.array([], dtype=np.float32)
-                                        self.target_embedding = None
-                                        print("Target speaker cleared.")
-                                        continue
-                                    if time.time() - self.last_detected_time > 1:
-                                        self.speech_detected = False
-                                        saved_audio_buffer = audio_buffer.flatten()
-                                        audio_buffer = np.array([], dtype=np.float32)
-                                        clean_audio = self.denoise_audio(saved_audio_buffer)
-
-                                        target_audio = self.voiceprint.extract_target_speaker_segments(clean_audio, self.target_embedding, 0.5)
-
-                                        if np.any(target_audio):
-                                            self.last_detected_time = None
-                                            text = self.recognize_audio(target_audio)
-                                            print(f"Recognized target text: {text}")
-                                            self.stop_listening()
-                                            self.GUI_update_callback(text)
-
-                            else:
+                                saved_audio_buffer = audio_buffer.flatten()
                                 audio_buffer = np.array([], dtype=np.float32)
+                                self.detected_audio = self.denoise_audio(saved_audio_buffer)
+                                print("Speech ended.")
 
+                    if self.detected_audio is not None:
+                        self.stop_listening()
+                        text = self.recognize_audio(self.detected_audio)
+                        self.detected_audio = None
+                        print(f"Recognized text: {text}")
+                        self.GUI_update_callback(text)
+            
                 except Exception as e:
                     print(e)
 
     def recognize_audio(self, audio_data):
-        print(audio_data)
-        self.recognizer.Reset()
-        # audio_int16 = audio_data.astype(np.int16)
-        audio_int16 = np.int16(audio_data * 32767).flatten()
-        self.recognizer.AcceptWaveform(audio_int16.tobytes())
-        result = self.recognizer.FinalResult()
-        result_dict = json.loads(result)
-        return result_dict.get("text", "").replace(" ", "")
+        audio = audio_data.astype(np.float32).flatten()
+
+        result = self.whisper_model.transcribe(
+            audio,
+            language='zh',
+            fp16=False,
+            initial_prompt="以下是普通话内容。"
+        )
+
+        return result["text"].strip()
 
     def start_listening(self):
         if not self.is_listening:

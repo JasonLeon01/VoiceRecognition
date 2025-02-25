@@ -1,10 +1,5 @@
 
 /.vscode
-/TDANet/local_models
-/vosk-model-small-cn-0.22
-/TDANet/look2hear/models/__pycache__
-/vosk/__pycache__
-/vosk-model-cn-0.22
 /Resemblyzer/audio_data
 *.pyc
 /paraphrase-MiniLM-L6-v2

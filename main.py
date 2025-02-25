@@ -1,8 +1,8 @@
 import sys
 import os
+sys.path.append(os.path.join(os.getcwd(), 'Resemblyzer'))
 import tkinter as tk
 from typing import List
-sys.path.append(os.path.join(os.getcwd(), 'Resemblyzer'))
 import VoiceWatch
 from scenes.panel import Panel
 from scenes.panel1 import Panel1
