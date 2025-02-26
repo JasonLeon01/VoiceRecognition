@@ -16,6 +16,11 @@ class Listener:
         self.GUI_update_callback = GUI_update_callback
         self.is_listening = False
 
+        self.language_prompt = {
+            "zh": "以下是普通话内容，但是如果没有识别出任何内容，则不要输出。",
+            "en": "The following is English content, but if nothing is recognized, do not output."
+        }
+
         # 录音参数
         self.SAMPLERATE = 16000  # 采样率
         self.CHANNELS = 1  # 单声道
@@ -103,15 +108,28 @@ class Listener:
         else:
             fp16 = False
 
+        audio_pot = whisper.pad_or_trim(audio)
+        mel = whisper.log_mel_spectrogram(audio_pot, n_mels=self.whisper_model.dims.n_mels).to(self.whisper_model.device)
+        _, probs = self.whisper_model.detect_language(mel)
+
+        language = max(probs, key=probs.get)
+        print(f"Detected language: {language}")
+        if language in self.language_prompt:
+            initial_prompt = self.language_prompt[language]
+        else:
+            initial_prompt = "Show the content in the detected language."
+
         result = self.whisper_model.transcribe(
             audio,
-            language='zh',
+            language=language,
             fp16=fp16,
             temperature=0.2,
-            initial_prompt="以下是普通话内容，但是如果没有识别出任何内容，则不要输出。"
+            initial_prompt=initial_prompt
         )
 
-        return result["text"].strip()
+        print(f"Transcription result: {result['text']}")
+
+        return result["text"]
 
     def start_listening(self):
         if not self.is_listening:
