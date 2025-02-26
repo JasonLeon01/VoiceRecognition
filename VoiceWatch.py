@@ -2,14 +2,17 @@ import threading
 import time
 import numpy as np
 import sounddevice as sd
+import torch
 import noisereduce as nr
 import whisper
 import webrtcvad
 from Resemblyzer.resemblyzer import VoiceEncoder, preprocess_wav
+import speech_recognition as sr
 
 class Listener:
     def __init__(self, wake_word, GUI_update_callback):
         self.wake_word = wake_word
+        self.device = f'cuda' if torch.cuda.is_available() else 'cpu'
         self.GUI_update_callback = GUI_update_callback
         self.is_listening = False
 
@@ -18,6 +21,7 @@ class Listener:
         self.CHANNELS = 1  # 单声道
 
         self.whisper_model = whisper.load_model("turbo")
+        self.recognizer = sr.Recognizer()
 
         self.target_embedding = None
         self.last_detected_time = None
@@ -94,11 +98,17 @@ class Listener:
     def recognize_audio(self, audio_data):
         audio = audio_data.astype(np.float32).flatten()
 
+        if self.device == 'cuda':
+            fp16 = True
+        else:
+            fp16 = False
+
         result = self.whisper_model.transcribe(
             audio,
             language='zh',
-            fp16=False,
-            initial_prompt="以下是普通话内容。"
+            fp16=fp16,
+            temperature=0.2,
+            initial_prompt="以下是普通话内容，但是如果没有识别出任何内容，则不要输出。"
         )
 
         return result["text"].strip()

@@ -27,6 +27,6 @@ class Panel1(Panel):
             print(self.voie_text)
 
             self.voie_text = None
-            # self.parent.start_listening()
+            self.parent.start_listening()
 
         super().update()
