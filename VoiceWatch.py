@@ -73,6 +73,7 @@ class Listener:
                         else:
                             now_time = time.time()
                             if self.speech_detected and now_time - self.last_detected_time > 2:
+                                print("Time up. Speech ended.")
                                 self.speech_detected = False
                                 self.last_detected_time = None
                                 saved_audio_buffer = audio_buffer.flatten()
