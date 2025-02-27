@@ -40,10 +40,8 @@ class Listener:
         self.vad = webrtcvad.Vad(3)
     
     def denoise_audio(self, audio_data):
-        print("Denoising audio...")
         noise = audio_data[: min(len(audio_data), int(0.5 * self.SAMPLERATE))]
         reduced_noise = nr.reduce_noise(y=audio_data, sr=self.SAMPLERATE, y_noise=noise)
-        print("Audio denoised.")
         return reduced_noise
     
     def detect_speech(self):
@@ -63,7 +61,7 @@ class Listener:
         if status:
             print(status)
         # 将音频数据转换为16-bit PCM数据并累积
-        # indata_int16 = np.int16(indata * 32767)  # float32 转 int16
+
         self.buffer.extend(indata.flatten())  # 将数据追加到 buffer
 
     def listen(self):
@@ -114,6 +112,7 @@ class Listener:
 
         language = max(probs, key=probs.get)
         print(f"Detected language: {language}")
+
         if language in self.language_prompt:
             initial_prompt = self.language_prompt[language]
         else:
@@ -129,7 +128,7 @@ class Listener:
 
         print(f"Transcription result: {result['text']}")
 
-        return result["text"]
+        return language + ": " + result["text"]
 
     def start_listening(self):
         if not self.is_listening:
