@@ -31,10 +31,9 @@ flight_seat = {
 }
 
 user_info = {
-  "flight": "None",
-  "seat": ["None", -1, -1]
+  "flight": None
 }
 
 dialogue = "我要三月份那趟航班的走廊的座位"
 
-print(LLM.LLM.get_info(date, belonging_flight, flight_seat, user_info, dialogue))
+print(LLM.LLM.get_flight_info(date, belonging_flight, user_info, dialogue))
