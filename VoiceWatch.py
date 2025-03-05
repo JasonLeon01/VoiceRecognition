@@ -1,3 +1,4 @@
+import io
 import threading
 import time
 import numpy as np
@@ -8,6 +9,7 @@ import whisper
 import webrtcvad
 from Resemblyzer.resemblyzer import VoiceEncoder, preprocess_wav
 import speech_recognition as sr
+import soundfile as sf
 
 class Listener:
     def __init__(self, wake_word, GUI_update_callback):
@@ -56,6 +58,13 @@ class Listener:
         frame_int16 = np.int16(np.array(frame) * 32767).flatten()
         is_speech = self.vad.is_speech(frame_int16.tobytes(), self.SAMPLERATE)
         return is_speech, frame
+    
+    def is_speech(self, audio_array):
+        if audio_array.ndim > 1:
+            audio_array = audio_array.mean(axis=1)
+
+        audio_array = (audio_array * 32767).astype(np.int16)
+        return self.vad.is_speech(audio_array.tobytes(), self.SAMPLERATE)
 
     def callback(self, indata, frames, time, status):
         if status:
@@ -65,48 +74,49 @@ class Listener:
         self.buffer.extend(indata.flatten())  # 将数据追加到 buffer
 
     def listen(self):
-        with sd.InputStream(samplerate=self.SAMPLERATE, channels=self.CHANNELS, callback=self.callback):
-            print("Start watching...")
-            audio_buffer = np.array([], dtype=np.float32)
-            while self.is_listening:
-                try:
-                    if len(self.buffer) >= self.frame_length:
-                        is_speech, frame = self.detect_speech()
-                        if is_speech:
-                            audio_buffer = np.concatenate((audio_buffer, frame))
-                            print("Speech detected.")
-                            self.speech_detected = True
-                            self.last_detected_time = time.time()
-                        else:
-                            now_time = time.time()
-                            if self.speech_detected and now_time - self.last_detected_time > 2:
-                                print("Time up. Speech ended.")
-                                self.speech_detected = False
-                                self.last_detected_time = None
-                                saved_audio_buffer = audio_buffer.flatten()
-                                audio_buffer = np.array([], dtype=np.float32)
-                                self.detected_audio = self.denoise_audio(saved_audio_buffer)
-                                print("Speech ended.")
+        while self.is_listening:
+            with sr.Microphone() as source:
+                print("Start watching...")
+                audio = self.recognizer.listen(source)
 
-                    if self.detected_audio is not None:
-                        self.stop_listening()
-                        text = self.recognize_audio(self.detected_audio)
-                        self.detected_audio = None
-                        print(f"Recognized text: {text}")
-                        self.GUI_update_callback(text)
-            
-                except Exception as e:
-                    print(e)
+            print("Watching ended.")
+            wav_bytes = audio.get_wav_data(convert_rate=self.SAMPLERATE)
+            wav_stream = io.BytesIO(wav_bytes)
+            audio_array, sampling_rate = sf.read(wav_stream)
+            audio_array = audio_array.astype(np.float32)
 
-    def recognize_audio(self, audio_data):
-        audio = audio_data.astype(np.float32).flatten()
+            frame_length = int(self.SAMPLERATE * self.frame_duration_ms / 1000)
+            num_frames = len(audio_array) // frame_length
+            remainder = len(audio_array) % frame_length
 
+            if remainder != 0:
+                padding_length = frame_length - remainder
+                audio_array = np.pad(audio_array, (0, padding_length), mode='constant')
+
+            audio_array_speech = (audio_array * 32767).astype(np.int16)
+
+            speech_count = 0
+            for i in range(num_frames):
+                frame = audio_array_speech[i * frame_length:(i + 1) * frame_length]
+                if self.is_speech(frame):
+                    speech_count += 1
+
+            if speech_count > num_frames // 2:
+                print("Speech detected.")
+                text, language = self.language_detect(audio_array)
+                self.stop_listening()
+                self.GUI_update_callback(text)
+            else:
+                print("It's not person speaking.")
+                continue
+
+    def language_detect(self, audio_data):
         if self.device == 'cuda':
             fp16 = True
         else:
             fp16 = False
-
-        audio_pot = whisper.pad_or_trim(audio)
+        
+        audio_pot = whisper.pad_or_trim(audio_data)
         mel = whisper.log_mel_spectrogram(audio_pot, n_mels=self.whisper_model.dims.n_mels).to(self.whisper_model.device)
         _, probs = self.whisper_model.detect_language(mel)
 
@@ -119,7 +129,7 @@ class Listener:
             initial_prompt = "Show the content in the detected language."
 
         result = self.whisper_model.transcribe(
-            audio,
+            audio_data,
             language=language,
             fp16=fp16,
             temperature=0.2,
@@ -127,8 +137,7 @@ class Listener:
         )
 
         print(f"Transcription result: {result['text']}")
-
-        return language + ": " + result["text"]
+        return result["text"], language
 
     def start_listening(self):
         if not self.is_listening:
