@@ -12,16 +12,16 @@ import speech_recognition as sr
 import soundfile as sf
 
 class Listener:
-    def __init__(self, wake_word, GUI_update_callback):
-        self.wake_word = wake_word
+    def __init__(self, GUI_update_callback):
         self.device = f'cuda' if torch.cuda.is_available() else 'cpu'
         self.GUI_update_callback = GUI_update_callback
-        self.is_listening = False
 
         self.language_prompt = {
-            "zh": "以下是普通话内容，但是如果没有识别出任何内容，则不要输出。",
-            "en": "The following is English content, but if nothing is recognized, do not output."
+            "zh": "以下是普通话内容，可能会包括关键词 “你好小助手” ，可能会和机场值机系统相关，包括航班、座位、餐食等信息，但是如果没有识别出任何内容，则不要输出。",
+            "en": "The following is English content, which may include keyword 'Hi Assistant', and may be related to airport check-in systems, including flight, seat, meal information, but if nothing is recognized, do not output."
         }
+        
+        self.thread = None
 
         # 录音参数
         self.SAMPLERATE = 16000  # 采样率
@@ -74,41 +74,41 @@ class Listener:
         self.buffer.extend(indata.flatten())  # 将数据追加到 buffer
 
     def listen(self):
-        while self.is_listening:
-            with sr.Microphone() as source:
-                print("Start watching...")
-                audio = self.recognizer.listen(source)
+        with sr.Microphone() as source:
+            print("Start watching...")
+            audio = self.recognizer.listen(source)
 
-            print("Watching ended.")
-            wav_bytes = audio.get_wav_data(convert_rate=self.SAMPLERATE)
-            wav_stream = io.BytesIO(wav_bytes)
-            audio_array, sampling_rate = sf.read(wav_stream)
-            audio_array = audio_array.astype(np.float32)
+        print("Watching ended.")
+        wav_bytes = audio.get_wav_data(convert_rate=self.SAMPLERATE)
+        wav_stream = io.BytesIO(wav_bytes)
+        audio_array, sampling_rate = sf.read(wav_stream)
+        audio_array = audio_array.astype(np.float32)
 
-            frame_length = int(self.SAMPLERATE * self.frame_duration_ms / 1000)
-            num_frames = len(audio_array) // frame_length
-            remainder = len(audio_array) % frame_length
+        frame_length = int(self.SAMPLERATE * self.frame_duration_ms / 1000)
+        num_frames = len(audio_array) // frame_length
+        remainder = len(audio_array) % frame_length
 
-            if remainder != 0:
-                padding_length = frame_length - remainder
-                audio_array = np.pad(audio_array, (0, padding_length), mode='constant')
+        if remainder != 0:
+            padding_length = frame_length - remainder
+            audio_array = np.pad(audio_array, (0, padding_length), mode='constant')
 
-            audio_array_speech = (audio_array * 32767).astype(np.int16)
+        audio_array_speech = (audio_array * 32767).astype(np.int16)
 
-            speech_count = 0
-            for i in range(num_frames):
-                frame = audio_array_speech[i * frame_length:(i + 1) * frame_length]
-                if self.is_speech(frame):
-                    speech_count += 1
+        speech_count = 0
+        for i in range(num_frames):
+            frame = audio_array_speech[i * frame_length:(i + 1) * frame_length]
+            if self.is_speech(frame):
+                speech_count += 1
 
-            if speech_count > num_frames // 2:
-                print("Speech detected.")
-                text, language = self.language_detect(audio_array)
-                self.stop_listening()
-                self.GUI_update_callback(text)
-            else:
-                print("It's not person speaking.")
-                continue
+        if speech_count > num_frames * 3 // 5:
+            print("Speech detected.")
+            text, language = self.language_detect(audio_array)
+            self.stop_listening()
+            self.GUI_update_callback(text)
+            self.listen_thread = None
+        else:
+            print("It's not person speaking.")
+            self.GUI_update_callback("")
 
     def language_detect(self, audio_data):
         if self.device == 'cuda':
@@ -140,14 +140,12 @@ class Listener:
         return result["text"], language
 
     def start_listening(self):
-        if not self.is_listening:
-            self.is_listening = True
-            listen_thread = threading.Thread(target=self.listen)
-            listen_thread.start()
+        self.thread = threading.Thread(target=self.listen)
+        self.thread.start()
 
     def stop_listening(self):
-        self.is_listening = False
         sd.stop()
+        self.thread = None
         print("Stop watching...")
 
 class Voiceprint:
