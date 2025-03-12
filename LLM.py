@@ -7,8 +7,8 @@ class LLM:
         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
     )
 
-    @classmethod
-    def get_flight_info(cls, date, belonging_flight, user_info, dialogue):
+    @staticmethod
+    def get_flight_info(date, belonging_flight, user_info, dialogue):
         content = f'你是一个航班座位选择助手，能够根据用户的输入和提供的数据，帮助用户选择合适的航班或座位。\n\
 以下是你的任务说明和规则：\n\
 当前的日期是 {date}。\n\
