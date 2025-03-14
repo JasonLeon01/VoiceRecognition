@@ -38,7 +38,8 @@ class App:
         if text is not None and text != "":
             self.current_panel.get_text(text, False)
         else:
-            self.current_panel.get_text("NPS", True)
+            self.current_panel.get_text("", True)
+            self.start_listening()
 
 def main():
     root = tk.Tk()

@@ -17,10 +17,10 @@ class Listener:
         self.GUI_update_callback = GUI_update_callback
 
         self.language_prompt = {
-            "zh": "以下是普通话内容，可能会包括关键词 “你好小助手” ，可能会和机场值机系统相关，包括航班、座位、餐食等信息，但是如果没有识别出任何内容，则不要输出。",
-            "en": "The following is English content, which may include keyword 'Hi Assistant', and may be related to airport check-in systems, including flight, seat, meal information, but if nothing is recognized, do not output."
+            "zh": "以下是机场值机柜台的对话内容。用户可能会说‘你好小助手’来开始对话。内容主要涉及：航班号（例如：MU2501）、座位类型（头等舱、商务舱、经济舱）、座位号（例如：15A、22C）、登机口号码、航班时间等信息。请准确识别数字和字母，避免同音字混淆。如果没有识别到任何有效信息，则不要输出。",
+            "en": "The following is a conversation at an airport check-in counter. The user may say 'Hi Assistant' to start the conversation. Content mainly includes: flight numbers (e.g., MU2501), seat classes (First Class, Business Class, Economy Class), seat numbers (e.g., 15A, 22C), gate numbers, and flight times. Please accurately recognize numbers and letters. If no valid information is recognized, do not output."
         }
-        
+
         self.thread = None
 
         # 录音参数
@@ -40,16 +40,16 @@ class Listener:
         self.frame_length = int(self.SAMPLERATE * self.frame_duration_ms / 1000)  # 每帧的采样点数
         self.buffer = []  # 用来存储累积的音频数据，但只处理每帧的数据
         self.vad = webrtcvad.Vad(3)
-    
+
     def denoise_audio(self, audio_data):
         noise = audio_data[: min(len(audio_data), int(0.5 * self.SAMPLERATE))]
         reduced_noise = nr.reduce_noise(y=audio_data, sr=self.SAMPLERATE, y_noise=noise)
         return reduced_noise
-    
+
     def detect_speech(self):
         if len(self.buffer) < self.frame_length:  # 如果积累的数据不够一帧的大小
             return False, None
-        
+
         # 获取一帧数据（每帧30ms的数据）
         frame = self.buffer[:self.frame_length]
         self.buffer = self.buffer[self.frame_length:]  # 移除已处理的帧数据
@@ -58,13 +58,49 @@ class Listener:
         frame_int16 = np.int16(np.array(frame) * 32767).flatten()
         is_speech = self.vad.is_speech(frame_int16.tobytes(), self.SAMPLERATE)
         return is_speech, frame
-    
+
     def is_speech(self, audio_array):
         if audio_array.ndim > 1:
             audio_array = audio_array.mean(axis=1)
 
-        audio_array = (audio_array * 32767).astype(np.int16)
-        return self.vad.is_speech(audio_array.tobytes(), self.SAMPLERATE)
+        # 设置参数
+        frame_duration_ms = 30  # 改为30ms per frame
+        frame_length = int(self.SAMPLERATE * frame_duration_ms / 1000)
+
+        # 补足音频长度为frame_length的整数倍
+        remainder = len(audio_array) % frame_length
+        if remainder != 0:
+            padding_length = frame_length - remainder
+            audio_array = np.pad(audio_array, (0, padding_length), mode='constant')
+
+        # 切分音频
+        num_frames = len(audio_array) // frame_length
+        speech_frames = []
+
+        # 处理每个30ms的片段
+        for i in range(num_frames):
+            frame = audio_array[i * frame_length:(i + 1) * frame_length]
+            frame_int16 = (frame * 32767).astype(np.int16)
+
+            try:
+                # 判断是否有人声
+                if self.vad.is_speech(frame_int16.tobytes(), self.SAMPLERATE):
+                    speech_frames.append(frame)
+            except Exception as e:
+                print(f"Frame {i} processing error: {e}")
+                continue
+
+        if not speech_frames:
+            return False, None
+
+        # 合并有人声的片段
+        speech_audio = np.concatenate(speech_frames)
+
+        # 判断有人声部分是否超过1秒
+        if len(speech_audio) > self.SAMPLERATE:  # 超过1秒
+            return True, speech_audio
+        else:
+            return False, None
 
     def callback(self, indata, frames, time, status):
         if status:
@@ -84,38 +120,22 @@ class Listener:
         audio_array, sampling_rate = sf.read(wav_stream)
         audio_array = audio_array.astype(np.float32)
 
-        frame_length = int(self.SAMPLERATE * self.frame_duration_ms / 1000)
-        num_frames = len(audio_array) // frame_length
-        remainder = len(audio_array) % frame_length
-
-        if remainder != 0:
-            padding_length = frame_length - remainder
-            audio_array = np.pad(audio_array, (0, padding_length), mode='constant')
-
-        audio_array_speech = (audio_array * 32767).astype(np.int16)
-
-        speech_count = 0
-        for i in range(num_frames):
-            frame = audio_array_speech[i * frame_length:(i + 1) * frame_length]
-            if self.is_speech(frame):
-                speech_count += 1
-
-        if speech_count > num_frames * 3 // 5:
+        has_speech, speech_audio = self.is_speech(audio_array)
+        if has_speech:
             print("Speech detected.")
-            text, language = self.language_detect(audio_array)
-            self.stop_listening()
+            text, language = self.language_detect(speech_audio)
             self.GUI_update_callback(text)
-            self.listen_thread = None
         else:
             print("It's not person speaking.")
             self.GUI_update_callback("")
+        self.stop_listening()
 
     def language_detect(self, audio_data):
         if self.device == 'cuda':
             fp16 = True
         else:
             fp16 = False
-        
+
         audio_pot = whisper.pad_or_trim(audio_data)
         mel = whisper.log_mel_spectrogram(audio_pot, n_mels=self.whisper_model.dims.n_mels).to(self.whisper_model.device)
         _, probs = self.whisper_model.detect_language(mel)
@@ -163,12 +183,12 @@ class Voiceprint:
     def split_audio(self, audio_data, segment_duration):
         segment_length = int(self.SAMPLERATE * segment_duration)
         return [audio_data[i:i + segment_length] for i in range(0, len(audio_data), segment_length)]
-    
+
     def extract_target_speaker_segments(self, audio_data, target_embedding, in_similarity, segment_duration=0.5):
         audio_segments = self.split_audio(audio_data, segment_duration)
         segment_length = int(self.SAMPLERATE * segment_duration)
         target_segments = np.zeros_like(audio_data)
-        
+
         for i, segment in enumerate(audio_segments):
             # 提取当前分段的声纹特征
             segment_embedding = self.encoder.embed_utterance(segment)
