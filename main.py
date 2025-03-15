@@ -19,6 +19,7 @@ class App:
 
         self.listener = VoiceWatch.Listener(lambda text: root.after(0, self.response, text))
 
+        Panel.init_data()
         self.panels: List[Panel] = [Panel1(self, size), Panel2(self, size), Panel3(self, size), Panel4(self, size), Panel5(self, size), Panel6(self, size)]
         for i in range(len(self.panels) - 1):
             self.panels[i].next_panel = self.panels[(i + 1) % len(self.panels)]

@@ -25,6 +25,130 @@ class Panel(tk.Frame):
         self.fg_label.place(x=50, y=50)
         self._update_id = None
 
+    @classmethod
+    def init_data(cls):
+        cls.date = "2025-02-04"
+        cls.belonging_flight = {
+            "flight": [
+                {
+                    "id": "Air-Beijing-Shanghai-2025-03-05-10-25-00",
+                    "class": "economy"
+                },
+                {
+                    "id": "Air-Chongqing-Guangzhou-2025-02-05-19-45-00",
+                    "class": "first"
+                }
+            ]
+        }
+
+        cls.flight_seat = {
+            "Air-Beijing-Shanghai-2025-03-05-10-25-00": {
+                "first": [
+                    [False, True],
+                    [False, True],
+                    [False, True],
+                    [False, False]
+                ],
+                "business": [
+                    [True, True, False, False],
+                    [False, False, True, True],
+                    [True, True, True, False],
+                    [False, True, True, True],
+                    [True, True, True, False],
+                    [True, True, True, False],
+                    [True, True, False, False],
+                    [True, False, False, True]
+                ],
+                "economy": [
+                    [True, False, True, True, False, True],
+                    [True, False, True, False, True, False],
+                    [True, False, True, False, True, False],
+                    [True, True, False, False, True, False],
+                    [True, True, True, False, False, True],
+                    [False, True, True, False, False, True],
+                    [True, False, True, False, True, True],
+                    [False, False, True, False, True, True],
+                    [False, True, False, False, False, True],
+                    [True, True, True, False, True, False],
+                    [True, True, False, False, False, True],
+                    [True, True, False, True, False, True],
+                    [True, False, False, True, False, True],
+                    [True, True, True, True, False, False],
+                    [True, True, True, True, True, True],
+                    [False, False, True, False, True, True],
+                    [False, True, False, False, True, False],
+                    [False, False, True, True, True, False],
+                    [True, True, False, False, False, True],
+                    [False, False, False, True, False, True],
+                    [True, True, True, True, False, False],
+                    [False, True, True, True, True, True],
+                    [True, True, True, True, False, False],
+                    [True, False, True, False, True, False],
+                    [False, True, True, True, True, True],
+                    [True, False, True, True, False, True],
+                    [False, True, True, False, False, False],
+                    [True, True, True, False, True, True],
+                    [True, False, False, True, False, False],
+                    [False, True, True, True, False, True]
+                ]
+            },
+            "Air-Chongqing-Guangzhou-2025-02-05-19-45-00": {
+                "first": [
+                    [False, False],
+                    [True, False],
+                    [True, False],
+                    [True, False]
+                ],
+                "business": [
+                    [False, False, False, False],
+                    [True, False, False, False],
+                    [False, True, True, False],
+                    [True, False, False, True],
+                    [True, True, True, True],
+                    [True, False, True, True],
+                    [False, False, False, False],
+                    [False, True, True, True]
+                ],
+                "economy": [
+                    [True, True, True, False, False, False],
+                    [False, True, True, True, False, True],
+                    [False, True, True, False, False, True],
+                    [True, False, False, False, False, False],
+                    [True, False, True, False, False, False],
+                    [False, True, True, True, False, True],
+                    [True, False, True, True, True, True],
+                    [True, False, True, False, True, False],
+                    [True, False, False, False, True, True],
+                    [False, False, True, True, True, True],
+                    [False, True, False, True, False, True],
+                    [False, True, False, True, True, True],
+                    [False, True, False, False, True, False],
+                    [True, True, False, False, False, False],
+                    [True, False, False, True, False, True],
+                    [True, True, True, False, True, True],
+                    [True, True, False, False, True, True],
+                    [True, False, True, False, False, True],
+                    [True, True, True, False, False, False],
+                    [False, False, False, True, False, False],
+                    [True, False, False, True, True, False],
+                    [True, False, True, False, False, False],
+                    [True, False, False, True, False, True],
+                    [True, False, False, True, True, True],
+                    [True, False, True, False, True, True],
+                    [True, False, False, True, True, True],
+                    [True, False, True, False, False, True],
+                    [True, False, False, False, False, False],
+                    [False, False, True, False, True, False],
+                    [False, True, False, False, True, False],
+                ]
+            }
+        }
+
+        cls.user_info = {
+            "flight": "None",
+            "seat": "None"
+        }
+
     def get_text(self, text, NPS):
         if NPS == False:
             self.fg_label.config(text=text)
@@ -40,12 +164,12 @@ class Panel(tk.Frame):
             return
         else:
             self._update_id = self.after(16, self.update)
-        
+
     def show(self):
         self.place(x=0, y=0)
         if self._update_id is None:
             self.update()
-        
+
     def hide(self):
         self.place_forget()
         if self._update_id:
