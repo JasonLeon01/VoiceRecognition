@@ -5,11 +5,10 @@ class Panel6(Panel):
     def __init__(self, parent, size):
         self.count = 0
         super().__init__(parent, size, image_path="bg/5.png")
+        self.shown = False
 
     def update(self):
-        if self.count >= 100:
-            self.count = 0
-            if self.next_panel:
-                self.next_node()
-        self.count += 1
+        if not self.shown:
+            self.shown = True
+            print(self.user_info)
         super().update()

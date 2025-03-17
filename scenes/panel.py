@@ -160,6 +160,9 @@ class Panel(tk.Frame):
 
     def update(self):
         # 基类内容，后面通过super调用
+        if self.parent.current_panel != self:
+            self._update_id = -1
+            return
         if self._update_id == -1:
             return
         else:
@@ -179,6 +182,20 @@ class Panel(tk.Frame):
     def next_node(self):
         self.hide()
         self.parent.current_panel = self.next_panel
+        self.parent.current_panel.show()
+
+    def change_to_node(self, index):
+        self.hide()
+        self.parent.stop_listening()
+        self.clear_text()
+        self.parent.current_panel = self.parent.panels[index]
+        self.parent.current_panel.show()
+
+    def change_to_node_by_name(self, name):
+        self.hide()
+        self.parent.stop_listening()
+        self.clear_text()
+        self.parent.current_panel = eval(f"self.parent.{name}")
         self.parent.current_panel.show()
 
     def get_LLM_answer(self, date, belonging_flight, user_info, dialogue):

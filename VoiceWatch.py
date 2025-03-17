@@ -17,8 +17,8 @@ class Listener:
         self.GUI_update_callback = GUI_update_callback
 
         self.language_prompt = {
-            "zh": "以下是机场值机柜台的对话内容。用户可能会说‘你好小助手’来开始对话。内容主要涉及：航班号（例如：MU2501）、座位类型（头等舱、商务舱、经济舱）、座位号（例如：15A、22C）、登机口号码、航班时间等信息。请准确识别数字和字母，避免同音字混淆。如果没有识别到任何有效信息，则不要输出。",
-            "en": "The following is a conversation at an airport check-in counter. The user may say 'Hi Assistant' to start the conversation. Content mainly includes: flight numbers (e.g., MU2501), seat classes (First Class, Business Class, Economy Class), seat numbers (e.g., 15A, 22C), gate numbers, and flight times. Please accurately recognize numbers and letters. If no valid information is recognized, do not output."
+            "zh": "以下是机场值机柜台的对话内容。用户可能会说'你好小助手'来开始对话。内容主要涉及：航线（例如：北京飞上海、重庆到广州）、航班号（例如：MU2501）、座位类型（头等舱、商务舱、经济舱）、座位号（例如：15A、22C）、座位偏好（靠窗、靠走廊/过道）、登机口号码、航班时间等信息。请准确识别地名、数字和字母，避免同音字混淆。如果没有识别到任何有效信息，则不要输出。",
+            "en": "The following is a conversation at an airport check-in counter. The user may say 'Hi Assistant' to start the conversation. Content mainly includes: flight routes (e.g., Beijing to Shanghai, Chongqing to Guangzhou), flight numbers (e.g., MU2501), seat classes (First Class, Business Class, Economy Class), seat numbers (e.g., 15A, 22C), seat preferences (window seat, aisle seat), gate numbers, and flight times. Please accurately recognize place names, numbers and letters. If no valid information is recognized, do not output."
         }
 
         self.thread = None
@@ -110,11 +110,25 @@ class Listener:
         self.buffer.extend(indata.flatten())  # 将数据追加到 buffer
 
     def listen(self):
+        if self.thread is None:
+            return
         with sr.Microphone() as source:
             print("Start watching...")
-            audio = self.recognizer.listen(source)
+            try:
+                audio = self.recognizer.listen(source, timeout=2)
+                if self.thread is None:
+                    return
+            except sr.WaitTimeoutError:
+                print("Timeout waiting for audio.")
+                if self.thread is None:
+                    self.stop_listening()
+                    return
+                self.listen()
+                return
 
         print("Watching ended.")
+        if self.thread is None:
+            return
         wav_bytes = audio.get_wav_data(convert_rate=self.SAMPLERATE)
         wav_stream = io.BytesIO(wav_bytes)
         audio_array, sampling_rate = sf.read(wav_stream)

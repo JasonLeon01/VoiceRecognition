@@ -5,11 +5,16 @@ class Panel4(Panel):
     def __init__(self, parent, size):
         self.count = 0
         super().__init__(parent, size, image_path="bg/3.png")
+        self.shown = False
 
     def update(self):
-        if self.count >= 100:
-            self.count = 0
-            if self.next_panel:
-                self.next_node()
-        self.count += 1
+        if not self.shown:
+            self.shown = True
+            print(self.belonging_flight)
+        if self.parent.esc_pressed:
+            self.parent.esc_pressed = False
+            self.shown = False
+            self.change_to_node(1)
+            self.parent.start_listening()
+            return
         super().update()
