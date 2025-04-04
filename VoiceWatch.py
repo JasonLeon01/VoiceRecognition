@@ -1,6 +1,7 @@
 import io
 import threading
 import time
+from librosa import segment
 import numpy as np
 import sounddevice as sd
 import torch
@@ -32,6 +33,7 @@ class Listener:
         self.recognizer = sr.Recognizer()
 
         self.target_embedding = None
+        self.record_embedding = False
         self.last_detected_time = None
         self.speech_detected = False
         self.voiceprint = Voiceprint()
@@ -135,6 +137,36 @@ class Listener:
         audio_array, sampling_rate = sf.read(wav_stream)
         audio_array = audio_array.astype(np.float32)
 
+        try:
+            if not self.record_embedding:
+                current_embedding = self.voiceprint.extract_voice_embedding(audio_array)
+                self.target_embedding = current_embedding
+            else:
+                segment_duration = 0.5
+                segments = self.voiceprint.split_audio(audio_array, segment_duration)
+                similar_segments = []
+                for i, segment in enumerate(segments):
+                    segment_embedding = self.voiceprint.extract_voice_embedding(segment)
+                    similarity = self.voiceprint.get_similarity(segment_embedding, self.target_embedding)
+                    print(f"Similarity for segment {i}: {similarity}")
+                    if similarity > 0.6:
+                        similar_segments.append(segment)
+                if similar_segments:
+                    print("Similar segments detected.")
+                    audio_array = np.concatenate(similar_segments)
+                    print(f"Found {len(similar_segments)} segments.")
+                else:
+                    print("No similar segments found.")
+                    self.GUI_update_callback("")
+                    self.stop_listening()
+                    return
+
+        except Exception as e:
+            print(f"Error during voiceprint extraction: {e}")
+            self.GUI_update_callback("")
+            self.stop_listening()
+            return
+
         has_speech, speech_audio = self.is_speech(audio_array)
         if has_speech:
             print("Speech detected.")
@@ -203,25 +235,8 @@ class Voiceprint:
         segment_length = int(self.SAMPLERATE * segment_duration)
         return [audio_data[i:i + segment_length] for i in range(0, len(audio_data), segment_length)]
 
-    def extract_target_speaker_segments(self, audio_data, target_embedding, in_similarity, segment_duration=0.5):
-        audio_segments = self.split_audio(audio_data, segment_duration)
-        segment_length = int(self.SAMPLERATE * segment_duration)
-        target_segments = np.zeros_like(audio_data)
-
-        for i, segment in enumerate(audio_segments):
-            # 提取当前分段的声纹特征
-            segment_embedding = self.encoder.embed_utterance(segment)
-
-            if np.linalg.norm(segment_embedding) == 0 or np.linalg.norm(target_embedding) == 0:
-                continue
-
-            similarity = np.dot(segment_embedding, target_embedding) / (np.linalg.norm(segment_embedding) * np.linalg.norm(target_embedding))  # 计算相似度
-
-            # 如果相似度高于阈值，认为是目标说话人的声音
-            print(f"Segment {i + 1} similarity: {similarity}")
-            if similarity > in_similarity:  # 阈值可以根据实际情况调整
-                start = i * segment_length
-                end = start + len(segment)  # 使用实际长度，以处理不足一个分段的部分
-                target_segments[start:end] = segment  # 提取目标说话人的声音
-
-        return target_segments
+    def get_similarity(self, embedding1, embedding2):
+        similarity = np.dot(embedding1, embedding2) / (
+            np.linalg.norm(embedding1) * np.linalg.norm(embedding2)
+        )
+        return similarity
