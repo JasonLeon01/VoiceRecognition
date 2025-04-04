@@ -4,6 +4,7 @@ import time
 import numpy as np
 import sounddevice as sd
 import torch
+from LLM import LLM
 import noisereduce as nr
 import whisper
 import webrtcvad
@@ -138,7 +139,11 @@ class Listener:
         if has_speech:
             print("Speech detected.")
             text, language = self.language_detect(speech_audio)
-            self.GUI_update_callback(text)
+            if LLM.check_if_gibberish(text) == True:
+                print("It's gibberish.")
+                self.GUI_update_callback("")
+            else:
+                self.GUI_update_callback(LLM.auto_fix_dialogue(text))
         else:
             print("It's not person speaking.")
             self.GUI_update_callback("")
