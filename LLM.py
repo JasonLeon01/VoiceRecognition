@@ -44,7 +44,7 @@ flight 表示用户当前是否已指定航班，"None" 表示未指定。\n\
 
     @classmethod
     def check_if_gibberish(cls, text) -> bool | None:
-        content = f'你是一个语言识别助手，你要根据文字的输入，判断这是否是一句正常的人话。不正常的例子有大量重复无意义的语句，例如重复了很多次的"I\'ll be going“等等。但是单纯的发音的错误不需要你来注意。\n以下是需要判断的文字：\n{text}\n请你输出一个数字，数字为0表示正常，数字为1表示不正常。你只需要输出一个数字，不需要输出任何提示信息。'
+        content = f'你是一个语言识别助手，你要根据文字的输入，判断这一句是否有大量重复的内容，例如重复了很多次的"I\'ll be going“等等。\n以下是需要判断的文字：\n{text}\n请你输出一个数字，数字为0表示正常，数字为1表示不正常。你只需要输出一个数字，不需要输出任何提示信息。'
         completion = cls.client.chat.completions.create(
             model="qwen-max",
             messages=[
